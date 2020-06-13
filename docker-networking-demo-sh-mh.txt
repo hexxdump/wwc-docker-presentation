@@ -1,0 +1,84 @@
+SINGLE HOST
+
+example1
+========
+docker run -d --name c1 -p 8001:80 nginx:1.16.0-alpine
+docker run -d --name c2 -p 8002:80 nginx:1.16.0-alpine
+
+docker network create -d bridge --subnet 10.0.0.1/24 bridge1
+docker network connect bridge1 c1
+docker network connect bridge1 c2
+
+docker network inspect bridge1
+
+docker exec -ti c1 ash
+sed -i  's/Welcome to nginx/Welcome to container1/g' /usr/share/nginx/html/index.html
+exit
+
+docker exec -ti c2 ash
+sed -i  's/Welcome to nginx/Welcome to container2/g' /usr/share/nginx/html/index.html
+exit
+
+docker exec -ti c1 ash
+curl c1
+curl c2
+
+
+example2
+========
+
+docker network create bridge1
+
+docker run -d --name ws1 -p 8001:80 nginx
+docker network connect bridge1 ws1
+
+
+docker run -d --name ws2 -p 8002:80 nginx
+docker network connect bridge1 ws2 
+
+docker network inspect bridge1
+
+docker exec -ti ws1 bash
+sed -i  's/Welcome to nginx/Welcome to ws1/g' /usr/share/nginx/html/index.html
+
+docker exec -ti ws2 bash
+sed -i  's/Welcome to nginx/Welcome to ws2/g' /usr/share/nginx/html/index.html
+
+docker exec -ti ws1 bash
+curl ws1
+curl ws2
+
+
+MULTI HOST
+
+
+On Leader
+
+docker swarm init #capture the o/p of this command
+docker network create -d overlay overlay-test
+docker network ls
+docker network inspect overlay-test
+docker service create --name mhnet --network overlay-test --replicas 2 alpine sleep 1d
+docker service  ps mhnet
+docker ps
+docker inspect mhnet.1
+
+On Worker
+
+docker swarm join     --token SWMTKN-1-3cxrsnljwv3mj7fket9e8td5t2gjxpep6fppsabfe36dspnv64-2elecd8hsndg82kmy201h4vnp     10.112.200.254:2377
+docker network ls
+docker network inspect overlay-test
+docker ps
+docker service ps mhnet
+docker network ls
+docker network inspect overlay-test
+docker service  ps mhnet
+docker inspect mhnet.2.a9nznt064y4kezcdngvdf4ovr 
+docker ps
+
+
+docker exec -it mhnet.2.a9nznt064y4kezcdngvdf4ovr sh
+# ping 10.0.0.4
+# ping mhnet.1.83fekkgi473ehzx8n1g70jyoy
+
+
